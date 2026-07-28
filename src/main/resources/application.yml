@@ -1,3 +1,9 @@
+kakao:
+  api-key: ${KAKAO_API_KEY}
+
+public-data:
+  api-key: ${PUBLIC_DATA_API_KEY}
+
 spring:
   datasource:
     url: ${DATABASE_URL}

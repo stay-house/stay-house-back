@@ -6,6 +6,7 @@ import com.example.stay_house_back.dto.eligibility.*;
 import com.example.stay_house_back.dto.simulator.enums.HousingType;
 import com.example.stay_house_back.entity.EligibilityCondition;
 import com.example.stay_house_back.entity.enums.HousingTarget;
+import com.example.stay_house_back.entity.enums.LifeEvent;
 import com.example.stay_house_back.repository.EligibilityConditionRepository;
 import com.example.stay_house_back.repository.LoanProductRateOptionRepository;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,13 @@ public class EligibilityFilterService {
         if (ec.getIncomeMin() != null && annualIncome < ec.getIncomeMin()) return false;
         if (ec.getIncomeMax() != null && annualIncome > ec.getIncomeMax()) return false;
 
+        // 순자산 — 소득과 별개 축. 미입력은 나이·소득처럼 통과시킨다
+        if (ec.getAssetLimit() != null && req.getNetAsset() != null
+                && req.getNetAsset() > ec.getAssetLimit()) return false;
+
+        // 생애사건 — 미입력을 통과시키지 않는다
+        if (!satisfiesLifeEvent(ec.getRequiredLifeEvent(), req)) return false;
+
         // 소득유형 (DB: "급여소득자,사업소득자" 형태로 저장)
         if (ec.getEmploymentType() != null) {
             String userType = req.getEmploymentType().getKoreanName();
@@ -108,6 +116,23 @@ public class EligibilityFilterService {
         }
 
         return true;
+    }
+
+    /**
+     * 생애사건 요건 충족 여부. 모름(null)은 통과시키지 않는다 —
+     * 통과시키면 전세피해를 겪지 않은 사용자에게 전세피해 대출이 추천된다.
+     *
+     * <p>required 가 null 인 건 은행 전세 상품(이 축이 없다)이므로 통과다.
+     * 정책 9건은 요건이 없으면 NONE 이 채워져 있다.
+     */
+    private boolean satisfiesLifeEvent(LifeEvent required, EligibilityRequest req) {
+        if (required == null || required == LifeEvent.NONE) return true;
+        return switch (required) {
+            case NEWBORN -> Boolean.TRUE.equals(req.getHasNewborn());
+            case NEWLYWED -> Boolean.TRUE.equals(req.getNewlywed());
+            case JEONSE_VICTIM -> Boolean.TRUE.equals(req.getJeonseVictim());
+            case NONE -> true;
+        };
     }
 
     // 상품의 housing_target과 사용자 요청 housingType 매칭 여부.

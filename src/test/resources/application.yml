@@ -1,0 +1,18 @@
+# 테스트 전용 더미. 운영 키는 환경변수로 주입한다.
+kakao:
+  api-key: test-kakao-key
+
+public-data:
+  api-key: test-public-data-key
+
+spring:
+  datasource:
+    url: jdbc:sqlite:fss.db
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    show-sql: false
+  flyway:
+    enabled: false

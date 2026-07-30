@@ -19,6 +19,8 @@
 --   loan_product                   41
 --   loan_product_rate_option       80
 --   policy                          9
+--   policy_preferential_cap        11
+--   policy_preferential_item       30
 --   policy_preferential_rate        5
 --   policy_rate_matrix             83
 --   policy_rate_rule                5
@@ -235,6 +237,36 @@ CREATE TABLE policy_preferential_rate (
     policy_id         INTEGER NOT NULL REFERENCES policy(id) ON DELETE CASCADE,
     raw_text          TEXT NOT NULL,      -- 우대금리 문단 원문. 파싱은 하지 않는다.
     UNIQUE (policy_id, raw_text)
+);
+
+-- 우대금리 구조화 결과. 원문(policy_preferential_rate)은 그대로 두고
+-- LLM 이 1회 추출한 것을 사람이 검수해 여기 담는다 (preferential.py --load).
+-- source_quote 는 raw_text 의 정확한 부분 문자열이어야 하며 적재 시 검증된다.
+CREATE TABLE policy_preferential_item (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    policy_id     INTEGER NOT NULL REFERENCES policy(id) ON DELETE CASCADE,
+    group_id      TEXT    NOT NULL,   -- 같은 그룹끼리 stacking 규칙을 공유
+    stacking      TEXT    NOT NULL CHECK (stacking IN ('EXCLUSIVE','STACKABLE')),
+    item_key      TEXT    NOT NULL,   -- 제도 간 중복 제거 키. 같은 키 = 같은 질문
+    question      TEXT,               -- NULL = ASK 없음, 조건 충족 시 자동 적용
+    delta         REAL    NOT NULL,   -- 인하폭(%p)
+    conditions    TEXT    NOT NULL,   -- JSON 배열. PROFILE(코드 판정) / ASK(질문)
+    source_quote  TEXT    NOT NULL,   -- 근거 원문 인용. 화면 표시 + 검수 대조용
+    extracted_at  TEXT,
+    checked_by    TEXT,
+    checked_at    TEXT,
+    UNIQUE (policy_id, item_key)
+);
+
+-- 우대 적용 상한. 체크 결과에 따라 상한이 달라진다 (0.5 기본, 수급권자·한부모
+-- 1.0, 다자녀 0.7). priority 오름차순으로 첫 매치를 적용한다.
+CREATE TABLE policy_preferential_cap (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    policy_id         INTEGER NOT NULL REFERENCES policy(id) ON DELETE CASCADE,
+    priority          INTEGER NOT NULL,
+    cap               REAL    NOT NULL,
+    when_any_checked  TEXT,             -- JSON 배열. NULL = 기본(항상 매치)
+    floor_rate        REAL    NOT NULL  -- 우대 적용 후 최종금리 하한(연 %)
 );
 
 CREATE TABLE policy_rate_matrix (

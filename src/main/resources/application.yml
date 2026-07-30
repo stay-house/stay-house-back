@@ -1,3 +1,6 @@
+cors:
+  allowed-origins: http://localhost:5173
+
 kakao:
   api-key: ${KAKAO_API_KEY}
 

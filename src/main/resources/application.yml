@@ -6,17 +6,17 @@ public-data:
 
 spring:
   datasource:
-    url: ${DATABASE_URL}
-    username: ${DATABASE_USERNAME}
-    password: ${DATABASE_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:sqlite:fss.db
+    driver-class-name: org.sqlite.JDBC
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        hbm2ddl:
-          halt_on_error: false
+
+  flyway:
+    enabled: false

@@ -38,3 +38,12 @@ out/
 
 ### mac OS ###
 .DS_Store
+
+### 버틸집 ###
+# user_profile / house 에 개인정보가 들어갈 수 있다.
+# 스키마는 schema.sql 로 관리하고 데이터는 파일로 공유한다.
+fss.db
+*.db
+
+.env
+CLAUDE.md

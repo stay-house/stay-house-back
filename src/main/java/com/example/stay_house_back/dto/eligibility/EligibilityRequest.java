@@ -1,6 +1,6 @@
 package com.example.stay_house_back.dto.eligibility;
 
-import com.example.stay_house_back.dto.simulator.enums.HousingType;
+import com.example.stay_house_back.dto.eligibility.HousingType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

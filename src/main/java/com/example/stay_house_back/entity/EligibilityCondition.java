@@ -1,7 +1,10 @@
 package com.example.stay_house_back.entity;
 
+import com.example.stay_house_back.entity.enums.LifeEvent;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -71,6 +74,14 @@ public class EligibilityCondition {
 
     @Column(name = "area_limit")
     private Double areaLimit;
+
+    /**
+     * 그 제도의 존재 이유가 되는 생애사건. 은행 전세 상품은 이 축이 없어 {@code null} 이며,
+     * {@code null} 은 {@link LifeEvent#NONE} 과 같이 취급한다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "required_life_event", length = 20)
+    private LifeEvent requiredLifeEvent;
 
     @Column(name = "ltv_ratio")
     private Double ltvRatio;

@@ -33,7 +33,7 @@ public class LoanProductConverter {
                 .isYouth(p.getIsYouth())
                 .guaranteeAgency(p.getGuaranteeAgency())
                 .maxAmount(p.getMaxAmount())
-                .ltvRatio(p.getLtvRatio())
+                .ltvRatio(ec.getLtvRatio())
                 .rateMin(rateMin.isPresent() ? rateMin.getAsDouble() : null)
                 .rateMax(rateMax.isPresent() ? rateMax.getAsDouble() : null)
                 .housingTarget(p.getHousingTarget() != null ? p.getHousingTarget().name() : null)

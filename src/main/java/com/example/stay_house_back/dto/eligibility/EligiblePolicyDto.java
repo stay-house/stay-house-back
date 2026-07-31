@@ -13,6 +13,7 @@ public class EligiblePolicyDto {
     private Double rateMin;
     private Double rateMax;
     private Integer loanLmtMax;
+    private Double ltvRatio;       // eligibility_condition.ltv_ratio. null이면 한도 = loanLmtMax
     private Integer monthlyAmount; // RENT_SUBSIDY용
     private String sourceUrl;
 }

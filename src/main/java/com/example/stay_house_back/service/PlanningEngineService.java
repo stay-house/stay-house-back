@@ -6,6 +6,9 @@ import com.example.stay_house_back.dto.eligibility.EligibleLoanProductDto;
 import com.example.stay_house_back.dto.eligibility.EligiblePolicyDto;
 import com.example.stay_house_back.dto.plan.FundingSource;
 import com.example.stay_house_back.dto.plan.Plan;
+import com.example.stay_house_back.dto.preferential.PlanLoanValues;
+import com.example.stay_house_back.dto.preferential.PreferentialEvaluation;
+import com.example.stay_house_back.dto.preferential.PreferentialProfile;
 import com.example.stay_house_back.entity.PolicyRateMatrix;
 import com.example.stay_house_back.entity.ProductExclusion;
 import com.example.stay_house_back.entity.enums.ProductType;
@@ -18,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,8 +37,16 @@ public class PlanningEngineService {
 
     private final PolicyRateMatrixRepository policyRateMatrixRepository;
     private final ProductExclusionRepository productExclusionRepository;
+    private final PreferentialRateService preferentialRateService;
 
-    public List<Plan> generate(EligibilityResponse eligible, EligibilityRequest req) {
+    /**
+     * @param profile 우대금리 PROFILE 판정용 사용자·매물 값
+     * @param answers 우대금리 답변 (itemKey → 체크 1 / 수 n). 없으면 빈 맵 —
+     *                빈 맵이어도 evaluate 는 호출한다. 신청액 30% 이하 같은
+     *                자동 항목은 체크 없이 플랜 값만으로 적용되기 때문이다.
+     */
+    public List<Plan> generate(EligibilityResponse eligible, EligibilityRequest req,
+                               PreferentialProfile profile, Map<String, Integer> answers) {
         int deposit = req.getDeposit();
         long ownCapital = req.getOwnCapital();
 
@@ -96,6 +108,14 @@ public class PlanningEngineService {
                 continue;
             }
             LoanCalc calc = calcLoan(pl.getLtvRatio(), pl.getLoanLmtMax(), rate, false, deposit, ownCapital);
+
+            // 우대금리 — 기본금리(격자)에서 체크·자동 항목만큼 인하. 대출금·한도가
+            // 확정된 이 시점에만 판정 가능하다 (신청액 30% 이하, 대출금 1.2억 이하)
+            PreferentialEvaluation eval = preferentialRateService.evaluate(
+                    pl.getId(), profile,
+                    new PlanLoanValues(calc.loanAmount, calc.capAmount), answers);
+            double finalRate = eval.applyTo(rate);
+
             FundingSource fs = FundingSource.ofPolicyLoan(pl);
             for (EligiblePolicyDto subsidy : subsidyOptions) {
                 plans.add(Plan.builder()
@@ -105,7 +125,7 @@ public class PlanningEngineService {
                         .loanAmount(calc.loanAmount)
                         .capAmount(calc.capAmount)
                         .shortfall(calc.shortfall)
-                        .annualRate(rate)
+                        .annualRate(finalRate)
                         .variableRate(false)
                         .build());
             }

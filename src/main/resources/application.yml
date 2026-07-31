@@ -7,6 +7,9 @@ kakao:
 public-data:
   api-key: ${PUBLIC_DATA_API_KEY}
 
+openai:
+  api-key: ${OPENAI_API_KEY}
+
 spring:
   datasource:
     url: jdbc:sqlite:fss.db

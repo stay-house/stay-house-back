@@ -83,7 +83,7 @@ public class PlanningEngineService {
 
         // ── BANK_LOAN ────────────────────────────────────────────────────────
         for (EligibleLoanProductDto lp : eligible.getLoanProducts()) {
-            LoanCalc calc = calcLoan(lp.getLtvRatio(), lp.getMaxAmount(), lp.getRateMin(), true, deposit, ownCapital);
+            LoanCalc calc = calcLoan(lp.getLtvRatio(), lp.getMaxAmount(), lp.getRateMin(), Boolean.TRUE.equals(lp.getIsVariableRate()), deposit, ownCapital);
             FundingSource fs = FundingSource.ofBankLoan(lp);
             for (EligiblePolicyDto subsidy : subsidyOptions) {
                 plans.add(Plan.builder()

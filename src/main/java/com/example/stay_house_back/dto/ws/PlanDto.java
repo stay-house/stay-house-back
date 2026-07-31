@@ -23,6 +23,7 @@ public class PlanDto {
     // 대출 상품 식별 (SELF_FUNDED이면 null)
     private final Long productId;
     private final String productName;
+    private final String bankName;          // BANK_LOAN일 때 은행명, 그 외 null
 
     // POLICY_LOAN이면 정책 카테고리
     private final String category;
@@ -32,9 +33,10 @@ public class PlanDto {
     private final Long govRentSubsidyAmount;
 
     // 대출 계산 결과
-    private final long loanAmount;
+    private final long loanAmount;          // 실제 대출금
     private final long capAmount;
     private final long shortfall;
+    private final long ownFundingAmount;    // 내 자금 충당액 = 보증금 - 대출금
     private final double annualRate;
     private final boolean variableRate;
 
@@ -48,4 +50,11 @@ public class PlanDto {
     private final Double burdenRatio;
     private final Double burdenIncrease2pp;
     private final List<MonthlyFlowSnapshot> scenarios;
+
+    // 랭킹 결과 (RESULT 단계에서 채워짐)
+    private final Double score;                 // 0~100 최종 점수
+    private final String oneLiner;              // 플랜 한줄 요약
+    private final Long monthlyHousingCost;      // 월 예상 부담액 합계 (원, 기준 시나리오)
+    private final Long monthlyLoanRepayment;    // 대출 상환분 (이자 또는 원리금, 기준 시나리오)
+    private final Long monthlyRentAfterSubsidy; // 순 월세 (지원금 차감 후, 기준 시나리오)
 }

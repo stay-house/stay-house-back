@@ -9,13 +9,15 @@ public class PlanDtoConverter {
     private PlanDtoConverter() {}
 
     /** 후보 단계 변환. 시뮬레이션 필드는 null. */
-    public static PlanDto toCandidate(Plan plan, long monthlyRent, long maintenanceFee,
+    public static PlanDto toCandidate(Plan plan, long deposit, long monthlyRent, long maintenanceFee,
                                       long monthlyIncomeNet, boolean monthlyIncomeEstimated) {
         String productName = switch (plan.getFundingSource().getType()) {
             case BANK_LOAN -> plan.getFundingSource().getBankLoan().getProductName();
             case POLICY_LOAN -> plan.getFundingSource().getPolicyLoan().getPolicyName();
             case SELF_FUNDED -> null;
         };
+        String bankName = plan.getFundingSource().getType() == com.example.stay_house_back.dto.plan.FundingSourceType.BANK_LOAN
+                ? plan.getFundingSource().getBankLoan().getBankName() : null;
         String category = switch (plan.getFundingSource().getType()) {
             case POLICY_LOAN -> plan.getFundingSource().getPolicyLoan().getCategory();
             default -> null;
@@ -26,6 +28,7 @@ public class PlanDtoConverter {
                 .fundingType(plan.getFundingSource().getType())
                 .productId(plan.getFundingSource().getProductId())
                 .productName(productName)
+                .bankName(bankName)
                 .category(category)
                 .rentSubsidyName(plan.getRentSubsidy() != null ? plan.getRentSubsidy().getPolicyName() : null)
                 .govRentSubsidyAmount(plan.getRentSubsidy() != null && plan.getRentSubsidy().getMonthlyAmount() != null
@@ -33,6 +36,7 @@ public class PlanDtoConverter {
                 .loanAmount(plan.getLoanAmount())
                 .capAmount(plan.getCapAmount())
                 .shortfall(plan.getShortfall())
+                .ownFundingAmount(deposit - plan.getLoanAmount())
                 .annualRate(plan.getAnnualRate())
                 .variableRate(plan.isVariableRate())
                 .monthlyRent(monthlyRent)

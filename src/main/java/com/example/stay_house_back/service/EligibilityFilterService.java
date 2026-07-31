@@ -30,12 +30,11 @@ public class EligibilityFilterService {
         }
 
         boolean isMetro = isMetroRegion(req.getAddress());
-        int houseCount = req.isNoHouse() ? 0 : (req.getHouseCount() != null ? req.getHouseCount() : 0);
 
         List<EligibleLoanProductDto> loanProducts = eligibilityConditionRepository
                 .findByLoanProductIsNotNull()
                 .stream()
-                .filter(ec -> isEligible(ec, req, isMetro, houseCount))
+                .filter(ec -> isEligible(ec, req, isMetro))
                 .filter(ec -> supportsHousingType(ec.getLoanProduct().getHousingTarget(), req.getHousingType()))
                 .map(ec -> LoanProductConverter.toDto(ec, loanProductRateOptionRepository.findByLoanProduct(ec.getLoanProduct())))
                 .toList();
@@ -43,7 +42,7 @@ public class EligibilityFilterService {
         List<EligiblePolicyDto> policies = eligibilityConditionRepository
                 .findByPolicyIsNotNull()
                 .stream()
-                .filter(ec -> isEligible(ec, req, isMetro, houseCount))
+                .filter(ec -> isEligible(ec, req, isMetro))
                 .map(ec -> PolicyConverter.toDto(ec))
                 .toList();
 
@@ -52,7 +51,7 @@ public class EligibilityFilterService {
 
     // 자격 판정
     private boolean isEligible(EligibilityCondition ec, EligibilityRequest req,
-                                boolean isMetro, int houseCount) {
+                                boolean isMetro) {
         int annualIncome = req.getAnnualIncome() != null ? req.getAnnualIncome() : 0;
 
         // 나이
@@ -85,9 +84,17 @@ public class EligibilityFilterService {
             if (userMonths < ec.getEmploymentMonths()) return false;
         }
 
-        // 무주택 조건
-        if ("무주택".equals(ec.getHouseOwnerType()) && houseCount > 0) return false;
-        if ("무주택또는1주택".equals(ec.getHouseOwnerType()) && houseCount > 1) return false;
+        // 무주택 조건 — 모름(null)은 조건이 있는 상품에서 보수적 탈락
+        if (ec.getHouseOwnerType() != null) {
+            Boolean noHouse = req.getNoHouse();
+            if (noHouse == null) return false;
+            if (!noHouse) {
+                int count = req.getHouseCount() != null ? req.getHouseCount() : Integer.MAX_VALUE;
+                if ("무주택".equals(ec.getHouseOwnerType())) return false;
+                if ("무주택또는1주택".equals(ec.getHouseOwnerType()) && count > 1) return false;
+            }
+            // noHouse=true(무주택)이면 모든 무주택 조건 통과
+        }
 
         // 보증금 한도 (no_deposit_limit = true면 스킵)
         if (!Boolean.TRUE.equals(ec.getNoDepositLimit())) {
@@ -103,12 +110,6 @@ public class EligibilityFilterService {
         // 기존 전세자금대출 보유 여부
         if (Boolean.FALSE.equals(ec.getOtherLoanAllowed()) && req.isHasExistingJeonseLoan()) return false;
 
-        // 신용점수 — 사용자가 입력 안 했으면 체크 스킵
-        if (ec.getCreditScoreKcbMin() != null && req.getCreditScoreKcb() != null
-                && req.getCreditScoreKcb() < ec.getCreditScoreKcbMin()) return false;
-        if (ec.getCreditScoreNiceMin() != null && req.getCreditScoreNice() != null
-                && req.getCreditScoreNice() < ec.getCreditScoreNiceMin()) return false;
-
         // 월세 상한 (RENT_SUBSIDY 정책용)
         if (ec.getMonthlyRentLimit() != null) {
             int rent = req.getMonthlyRent() != null ? req.getMonthlyRent() : 0;
@@ -118,13 +119,6 @@ public class EligibilityFilterService {
         return true;
     }
 
-    /**
-     * 생애사건 요건 충족 여부. 모름(null)은 통과시키지 않는다 —
-     * 통과시키면 전세피해를 겪지 않은 사용자에게 전세피해 대출이 추천된다.
-     *
-     * <p>required 가 null 인 건 은행 전세 상품(이 축이 없다)이므로 통과다.
-     * 정책 9건은 요건이 없으면 NONE 이 채워져 있다.
-     */
     private boolean satisfiesLifeEvent(LifeEvent required, EligibilityRequest req) {
         if (required == null || required == LifeEvent.NONE) return true;
         return switch (required) {

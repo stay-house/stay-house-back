@@ -1,6 +1,5 @@
 package com.example.stay_house_back.service;
 
-import com.example.stay_house_back.dto.plan.FundingSourceType;
 import com.example.stay_house_back.dto.simulator.MonthlyFlowSnapshot;
 import com.example.stay_house_back.dto.simulator.SimulationInput;
 import com.example.stay_house_back.dto.simulator.SimulationResult;
@@ -20,18 +19,17 @@ public class ScenarioSimulatorService {
      * - 고정금리 대출 또는 대출 없음: 3개 시나리오 모두 동일값
      */
     public SimulationResult simulate(SimulationInput input) {
-        boolean hasLoan = input.getPlan().getFundingSource().getType() != FundingSourceType.SELF_FUNDED;
-        boolean hasVariableRate = hasLoan && input.isVariableRate();
+        boolean hasVariableRate = input.isHasLoan() && input.isVariableRate();
 
         List<MonthlyFlowSnapshot> scenarios = Arrays.stream(STRESS_OFFSETS)
-                .mapToObj(offset -> calcScenario(input, hasLoan, offset))
+                .mapToObj(offset -> calcScenario(input, offset))
                 .toList();
 
         double burdenRatio = scenarios.get(0).getBurdenRatio();
         double worstBurdenRatio = scenarios.get(2).getBurdenRatio();
 
         return SimulationResult.builder()
-                .planTypeCode(input.getPlan().getPlanId())
+                .planTypeCode(input.getPlanId())
                 .hasVariableRate(hasVariableRate)
                 .scenarios(scenarios)
                 .burdenRatio(burdenRatio)
@@ -40,16 +38,12 @@ public class ScenarioSimulatorService {
                 .build();
     }
 
-    private MonthlyFlowSnapshot calcScenario(SimulationInput input, boolean hasLoan, double rateOffset) {
-        long monthlyLoanRepayment = hasLoan
+    private MonthlyFlowSnapshot calcScenario(SimulationInput input, double rateOffset) {
+        long monthlyLoanRepayment = input.isHasLoan()
                 ? calcMonthlyInterest(input, rateOffset)
                 : 0L;
 
-        long govRentSubsidy = input.getPlan().getRentSubsidy() != null
-                ? input.getPlan().getRentSubsidy().getMonthlyAmount()
-                : 0;
-
-        long monthlyRentAfterSubsidy = Math.max(0L, input.getMonthlyRent() - govRentSubsidy);
+        long monthlyRentAfterSubsidy = Math.max(0L, input.getMonthlyRent() - input.getGovRentSubsidyAmount());
 
         // 월 주거비 = 순 월세 + 대출 월 납부액 + 관리비
         long totalMonthlyHousingCost = monthlyRentAfterSubsidy + monthlyLoanRepayment + input.getMaintenanceFee();
@@ -67,12 +61,9 @@ public class ScenarioSimulatorService {
                 .build();
     }
 
-    // ─── 월 납부액 계산 (이자만 상환 고정) ───────────────────────────────────────
-
     /**
-     * 전세·정책 대출 모두 만기일시상환(이자만 상환) 방식.
+     * 만기일시상환 — 월이자 = 원금 × (연이율 / 100) / 12
      * 변동금리이면 rateOffset 적용, 고정금리이면 기본 금리 사용.
-     * 월이자 = 원금 × (연이율 / 100) / 12
      */
     private long calcMonthlyInterest(SimulationInput input, double rateOffset) {
         double effectiveRate = input.isVariableRate()

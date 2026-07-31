@@ -18,6 +18,7 @@ public class PolicyConverter {
                 .rateMin(p.getRateMin())
                 .rateMax(p.getRateMax())
                 .loanLmtMax(p.getLoanLmtMax())
+                .ltvRatio(ec.getLtvRatio())
                 .monthlyAmount(p.getMonthlyAmount())
                 .sourceUrl(p.getSourceUrl())
                 .build();

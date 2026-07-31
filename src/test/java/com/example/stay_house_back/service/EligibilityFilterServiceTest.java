@@ -3,7 +3,7 @@ package com.example.stay_house_back.service;
 import com.example.stay_house_back.dto.eligibility.EligibilityRequest;
 import com.example.stay_house_back.dto.eligibility.EligibilityResponse;
 import com.example.stay_house_back.dto.eligibility.EmploymentType;
-import com.example.stay_house_back.dto.simulator.enums.HousingType;
+import com.example.stay_house_back.dto.eligibility.HousingType;
 import com.example.stay_house_back.entity.EligibilityCondition;
 import com.example.stay_house_back.entity.Policy;
 import com.example.stay_house_back.entity.enums.LifeEvent;

@@ -1,12 +1,15 @@
 package com.example.stay_house_back.service;
 
+import com.example.stay_house_back.dto.eligibility.EligibilityRequest;
 import com.example.stay_house_back.dto.eligibility.EligibilityResponse;
 import com.example.stay_house_back.dto.eligibility.EligibleLoanProductDto;
 import com.example.stay_house_back.dto.eligibility.EligiblePolicyDto;
 import com.example.stay_house_back.dto.plan.Plan;
+import com.example.stay_house_back.entity.PolicyRateMatrix;
 import com.example.stay_house_back.entity.ProductExclusion;
 import com.example.stay_house_back.entity.ProductExclusionId;
 import com.example.stay_house_back.entity.enums.ProductType;
+import com.example.stay_house_back.repository.PolicyRateMatrixRepository;
 import com.example.stay_house_back.repository.ProductExclusionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,14 +18,30 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PlanningEngineServiceTest {
+
+    // 시그니처 변경(generate 가 req 를 받음)에 맞춘 기본 요청.
+    // 보증금 2억 / 자기자본 5천 / 연소득 4천 — 정책 격자 스텁과 함께 쓴다.
+    private static final EligibilityRequest REQ = EligibilityRequest.builder()
+            .deposit(200_000_000)
+            .ownCapital(50_000_000L)
+            .annualIncome(40_000_000)
+            .build();
+
+    @Mock
+    private PolicyRateMatrixRepository policyRateMatrixRepository;
 
     @Mock
     private ProductExclusionRepository productExclusionRepository;
@@ -34,6 +53,10 @@ class PlanningEngineServiceTest {
     void setUp() {
         // 기본적으로 exclusion 없음
         when(productExclusionRepository.findAll()).thenReturn(List.of());
+        // 정책 금리 격자는 항상 매칭된다고 가정 — 매칭 실패 시 정책 플랜이
+        // 조용히 빠지므로, 그 경로는 별도 테스트로 다룬다
+        when(policyRateMatrixRepository.findMatchingRates(anyLong(), anyInt(), anyInt()))
+                .thenReturn(List.of(PolicyRateMatrix.builder().rate(2.5).build()));
     }
 
     // ─── 헬퍼 팩토리 메서드 ────────────────────────────────────────────────────
@@ -76,7 +99,7 @@ class PlanningEngineServiceTest {
     @Test
     @DisplayName("상품이 하나도 없으면 SELF_FUNDED × NO_SUBSIDY 플랜 1개만 생성된다")
     void emptyEligible_onlySelfFundedNoSubsidy() {
-        List<Plan> plans = planningEngineService.generate(EligibilityResponse.empty());
+        List<Plan> plans = planningEngineService.generate(EligibilityResponse.empty(), REQ);
 
         assertThat(plans).hasSize(1);
         assertThat(plans.get(0).getPlanId()).isEqualTo("SELF_FUNDED_NO_SUBSIDY");
@@ -90,7 +113,7 @@ class PlanningEngineServiceTest {
                 List.of()
         );
 
-        List<Plan> plans = planningEngineService.generate(eligible);
+        List<Plan> plans = planningEngineService.generate(eligible, REQ);
 
         assertThat(plans).hasSize(3);
         assertThat(plans).allMatch(p -> p.getRentSubsidy() == null);
@@ -110,7 +133,7 @@ class PlanningEngineServiceTest {
                 List.of(policyLoan(10L))
         );
 
-        List<Plan> plans = planningEngineService.generate(eligible);
+        List<Plan> plans = planningEngineService.generate(eligible, REQ);
 
         assertThat(plans).hasSize(2);
         assertThat(plans).extracting(Plan::getPlanId)
@@ -128,7 +151,7 @@ class PlanningEngineServiceTest {
                 List.of(rentSubsidy(20L))
         );
 
-        List<Plan> plans = planningEngineService.generate(eligible);
+        List<Plan> plans = planningEngineService.generate(eligible, REQ);
 
         assertThat(plans).hasSize(6);
         assertThat(plans).extracting(Plan::getPlanId)
@@ -154,7 +177,7 @@ class PlanningEngineServiceTest {
                 List.of(policyLoan(10L), rentSubsidy(20L))
         );
 
-        List<Plan> plans = planningEngineService.generate(eligible);
+        List<Plan> plans = planningEngineService.generate(eligible, REQ);
 
         // 원래 4개 (SELF_FUNDED × 2 + POLICY_LOAN × 2)에서 POLICY_LOAN_10_SUBSIDY_20 1개 제거
         assertThat(plans).hasSize(3);
@@ -180,7 +203,7 @@ class PlanningEngineServiceTest {
                 List.of(policyLoan(10L), rentSubsidy(20L))
         );
 
-        List<Plan> plans = planningEngineService.generate(eligible);
+        List<Plan> plans = planningEngineService.generate(eligible, REQ);
 
         assertThat(plans).hasSize(3);
         assertThat(plans).extracting(Plan::getPlanId)
@@ -198,7 +221,7 @@ class PlanningEngineServiceTest {
                 List.of(rentSubsidy(20L))
         );
 
-        List<Plan> plans = planningEngineService.generate(eligible);
+        List<Plan> plans = planningEngineService.generate(eligible, REQ);
 
         assertThat(plans).hasSize(2);
         assertThat(plans).extracting(Plan::getPlanId)
@@ -220,7 +243,7 @@ class PlanningEngineServiceTest {
                 List.of(rentSubsidy(20L))
         );
 
-        List<Plan> plans = planningEngineService.generate(eligible);
+        List<Plan> plans = planningEngineService.generate(eligible, REQ);
 
         // 원래 6개에서 BANK_LOAN_1_SUBSIDY_20 1개 제거 → 5개
         assertThat(plans).hasSize(5);
@@ -242,7 +265,7 @@ class PlanningEngineServiceTest {
                 List.of(guaranteePolicy)
         );
 
-        List<Plan> plans = planningEngineService.generate(eligible);
+        List<Plan> plans = planningEngineService.generate(eligible, REQ);
 
         // GUARANTEE_FEE_REFUND는 대출/월세지원 어느 축에도 포함되지 않음
         assertThat(plans).hasSize(1);

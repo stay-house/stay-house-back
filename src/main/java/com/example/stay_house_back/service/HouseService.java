@@ -10,7 +10,10 @@ import com.example.stay_house_back.dto.kakao.KakaoAddressResponse.Document;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,14 +44,47 @@ public class HouseService {
             return List.of();
         }
 
-        return response.body().items().item().stream()
-                .filter(item -> "전유".equals(item.exposPubuseGbCdNm()))
-                .map(item -> item.area())
-                .filter(area -> area != null && area > 0)
+        List<BuildingRegistryResponse.Item> items = response.body().items().item();
+
+        Map<String, Double> exclusiveByUnit = items.stream()
+                .filter(i -> "전유".equals(i.exposPubuseGbCdNm())
+                          && "주건축물".equals(i.mainAtchGbCdNm())
+                          && i.area() != null && i.area() > 0)
+                .collect(Collectors.groupingBy(
+                        i -> i.dongNm() + "|" + i.hoNm(),
+                        Collectors.summingDouble(BuildingRegistryResponse.Item::area)));
+
+        Map<String, Double> commonByUnit = items.stream()
+                .filter(i -> "공용".equals(i.exposPubuseGbCdNm())
+                          && "주건축물".equals(i.mainAtchGbCdNm())
+                          && isResidentialCommon(i.etcPurps())
+                          && i.area() != null && i.area() > 0)
+                .collect(Collectors.groupingBy(
+                        i -> i.dongNm() + "|" + i.hoNm(),
+                        Collectors.summingDouble(BuildingRegistryResponse.Item::area)));
+
+        return exclusiveByUnit.entrySet().stream()
+                .map(e -> {
+                    double exclusive = e.getValue();
+                    double common = commonByUnit.getOrDefault(e.getKey(), 0.0);
+                    double supply = exclusive + common;
+                    return new FloorTypeResponse(
+                            Math.round(exclusive * 100.0) / 100.0,
+                            Math.round(supply * 100.0) / 100.0,
+                            Math.round(supply * 0.3025 * 10.0) / 10.0);
+                })
+                .filter(r -> r.supplyAreaSqm() > 0)
                 .distinct()
-                .sorted()
-                .map(area -> new FloorTypeResponse(area, Math.round(area * 0.3025 * 10.0) / 10.0))
+                .sorted(Comparator.comparingDouble(FloorTypeResponse::supplyAreaSqm))
                 .toList();
+    }
+
+    private static final List<String> RESIDENTIAL_COMMON_KEYWORDS =
+            List.of("계단", "승강기", "복도", "홀", "현관");
+
+    private boolean isResidentialCommon(String etcPurps) {
+        if (etcPurps == null || etcPurps.isBlank()) return false;
+        return RESIDENTIAL_COMMON_KEYWORDS.stream().anyMatch(etcPurps::contains);
     }
 
     private HouseSearchResponse toHouseSearchResponse(Document doc) {

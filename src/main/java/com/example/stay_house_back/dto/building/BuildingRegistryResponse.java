@@ -21,6 +21,9 @@ public record BuildingRegistryResponse(Header header, Body body) {
             String dongNm,              // 동명
             String hoNm,                // 호명
             String exposPubuseGbCdNm,   // 전유/공용 구분명
-            Double area                 // 전용면적 ㎡
+            String mainAtchGbCdNm,      // 주부속구분명 ("주건축물" = 본 건물, "부속건축물" = 부속)
+            String mainPurpsCdNm,       // 주용도명 (주거용, 업무용, 주차장 등)
+            String etcPurps,            // 기타용도
+            Double area                 // 면적 ㎡
     ) {}
 }

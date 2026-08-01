@@ -47,6 +47,15 @@ public class WebSocketController {
                 planRequestId, req.getBuildingName(),
                 startRequest.getAnswers() != null ? "있음" : "없음");
 
+        // 0건 진단용 — 어떤 입력이 필터를 통과 못했는지 로그만으로 답할 수 있게
+        log.info("[{}] 요청 요약: age={} 소득유형={} 재직={}개월 연소득={} 순자산={} 무주택={} "
+                        + "신생아/신혼/전세피해={}/{}/{} 유형={} 보증금={} 월세={} 면적={}㎡ 자기자본={}",
+                planRequestId, req.getAge(), req.getEmploymentType(), req.getEmploymentMonths(),
+                req.getAnnualIncome(), req.getNetAsset(), req.getNoHouse(),
+                req.getHasNewborn(), req.getNewlywed(), req.getJeonseVictim(),
+                req.getHousingType(), req.getDeposit(), req.getMonthlyRent(),
+                req.getAreaSqm(), req.getOwnCapital());
+
         send(planRequestId, progress("자격 조건 필터링 중..."));
         EligibilityResponse eligible = eligibilityFilterService.filter(req);
         try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }

@@ -39,10 +39,12 @@ class PlanningEngineServiceTest {
 
     // 시그니처 변경(generate 가 req 를 받음)에 맞춘 기본 요청.
     // 보증금 2억 / 자기자본 5천 / 연소득 4천 — 정책 격자 스텁과 함께 쓴다.
+    // 월세 50만 — 월세지원 축이 붙는 조건. 전세(월세 없음) 게이트는 별도 테스트로
     private static final EligibilityRequest REQ = EligibilityRequest.builder()
             .deposit(200_000_000)
             .ownCapital(50_000_000L)
             .annualIncome(40_000_000)
+            .monthlyRent(500_000)
             .build();
 
     // 우대 0 적용(항등) 스텁 — 우대 계산 자체는 PreferentialRateServiceTest 가 검증한다
@@ -157,6 +159,24 @@ class PlanningEngineServiceTest {
                         "SELF_FUNDED_NO_SUBSIDY",
                         "POLICY_LOAN_10_NO_SUBSIDY"
                 );
+    }
+
+    @Test
+    @DisplayName("전세(월세 없음)면 월세지원 축이 붙지 않는다 — 차감할 월세가 없다")
+    void jeonseGetsNoSubsidyAxis() {
+        EligibilityRequest jeonseReq = EligibilityRequest.builder()
+                .deposit(200_000_000)
+                .ownCapital(50_000_000L)
+                .annualIncome(40_000_000)
+                .build();   // monthlyRent 없음
+        EligibilityResponse eligible = new EligibilityResponse(
+                List.of(bankLoan(1L)),
+                List.of(rentSubsidy(20L))
+        );
+
+        List<Plan> plans = planningEngineService.generate(eligible, jeonseReq, PROFILE, Map.of());
+
+        assertThat(plans).allMatch(p -> p.getRentSubsidy() == null);
     }
 
     @Test

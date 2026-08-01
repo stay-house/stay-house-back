@@ -7,9 +7,11 @@ import com.example.stay_house_back.dto.ws.PlanDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +38,8 @@ public class PlanScoringService {
     private static final double BETA               = 0.3;   // shortfall 고정 비중
     private static final double SHORTFALL_PENALTY  = 30.0;  // 부족분 있으면 고정 감점
     private static final int    TOP_N              = 5;
+    // 선호 불일치 플랜을 흑백 카드로 보여줄 최대 개수
+    private static final int    UNMATCHED_EXTRA    = 3;
 
     private final ScenarioSimulatorService simulatorService;
 
@@ -61,7 +65,7 @@ public class PlanScoringService {
         // preference 정규화 기준
         int maxBoost = simulated.stream().mapToInt(s -> s.boostCount).max().orElse(0);
 
-        return simulated.stream()
+        var scored = simulated.stream()
                 .map(s -> {
                     double financialScore  = spread > 0
                             ? 100.0 * (maxBurden - s.sim.getBurdenRatio()) / spread
@@ -79,7 +83,27 @@ public class PlanScoringService {
                     return Map.entry(finalScore, s);
                 })
                 .sorted(Map.Entry.<Double, SimulatedPlan>comparingByKey(Comparator.reverseOrder()))
-                .limit(TOP_N)
+                .toList();
+
+        // 선호를 골랐다면: 상위 5개 뒤에 "선호와 다른 조건" 상위 플랜을 최대
+        // 3개 덧붙인다 (preferenceMatched=false — 프론트가 흑백으로 그린다).
+        // 선호 가산점이 특정 유형을 top 5 밖으로 밀어내면 사용자는 그 유형이
+        // 존재하는지도 모르게 되기 때문이다. 선호 미선택이면 기존과 동일하게 top 5.
+        boolean hasPreference = !boostedPlanIds.isEmpty();
+        List<Map.Entry<Double, SimulatedPlan>> picked = new ArrayList<>(
+                scored.stream().limit(TOP_N).toList());
+        if (hasPreference) {
+            Set<String> pickedIds = picked.stream()
+                    .map(e -> e.getValue().planDto.getPlanId())
+                    .collect(Collectors.toSet());
+            scored.stream()
+                    .filter(e -> e.getValue().boostCount == 0)
+                    .filter(e -> !pickedIds.contains(e.getValue().planDto.getPlanId()))
+                    .limit(UNMATCHED_EXTRA)
+                    .forEach(picked::add);
+        }
+
+        return picked.stream()
                 .map(e -> PlanDtoConverter.withSimulation(
                                 e.getValue().planDto,
                                 e.getValue().planDto.getAnnualRate(),
@@ -90,6 +114,7 @@ public class PlanScoringService {
                         .monthlyHousingCost(e.getValue().sim.baseScenario().getTotalMonthlyHousingCost())
                         .monthlyLoanRepayment(e.getValue().sim.baseScenario().getMonthlyLoanRepayment())
                         .monthlyRentAfterSubsidy(e.getValue().sim.baseScenario().getMonthlyRentAfterSubsidy())
+                        .preferenceMatched(hasPreference ? e.getValue().boostCount > 0 : null)
                         .build())
                 .toList();
     }

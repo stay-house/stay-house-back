@@ -129,23 +129,21 @@ public class GptClient {
 
                 ## 꼭 확인할 차이 항목 (우선순위 순, 이 항목 외에 추가로 확인해야할 사항이 있다면 다른 질문 생성하세요.)
 
-                1. 상품 유형: category가 POLICY_LOAN인 플랜과 BANK_LOAN인 플랜이 섞여 있으면
-                   → "정부 지원 대출과 은행 대출 중 어떤 것을 선호하시나요?" 질문 생성
-                   → "정부 지원 대출" 선택지: boostPlanIds = category가 POLICY_LOAN인 플랜들의 planId
-                   → "은행 대출" 선택지: boostPlanIds = category가 null(BANK_LOAN)인 플랜들의 planId
-
-                2. 가입 방법: joinWay 값이 다른 플랜들이 있으면
+                1. 가입 방법: joinWay 값이 다른 플랜들이 있으면
                    → 가입 방법 선호도 질문 생성
                    → 영업점 방문을 포함하는 joinWay: boostPlanIds = 해당 플랜들의 planId
                    → 스마트폰·인터넷 등 비대면을 포함하는 joinWay: boostPlanIds = 해당 플랜들의 planId
 
-                3. 선호 은행: BANK_LOAN 플랜이 2개 이상 은행에 걸쳐 있으면
+                2. 선호 은행: BANK_LOAN 플랜이 2개 이상 은행에 걸쳐 있으면
                    → "특별히 선호하는 은행이 있으신가요?" 질문 생성
                    → 각 은행 선택지: boostPlanIds = 해당 bankName의 플랜들의 planId
 
                 ## 절대 금지
 
                 - 금리 수준(낮은 금리 vs 높은 금리) 질문 금지. 금리는 이미 점수에 반영됩니다.
+                - 상품 유형(정부 지원 대출 vs 은행 대출) 질문 금지 — 시스템이 규칙으로 별도 생성합니다.
+                - 월세지원(rentSubsidyMonthlyAmount)은 대출 유형이 아닙니다. 이를 근거로
+                  "정부 지원" 여부를 판단하거나 boostPlanIds 에 넣지 마세요.
                 - 모든 플랜이 같은 값을 가진 항목은 질문하지 마세요.
 
                 ## 출력 규칙

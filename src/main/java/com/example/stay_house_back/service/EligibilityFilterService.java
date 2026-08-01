@@ -43,6 +43,7 @@ public class EligibilityFilterService {
                 .findByPolicyIsNotNull()
                 .stream()
                 .filter(ec -> isEligible(ec, req, isMetro))
+                .filter(ec -> supportsPolicyHousingType(ec.getPolicy().getPolicyNm(), req.getHousingType()))
                 .map(ec -> PolicyConverter.toDto(ec))
                 .toList();
 
@@ -126,6 +127,19 @@ public class EligibilityFilterService {
             case NEWLYWED -> Boolean.TRUE.equals(req.getNewlywed());
             case JEONSE_VICTIM -> Boolean.TRUE.equals(req.getJeonseVictim());
             case NONE -> true;
+        };
+    }
+
+    // policy 기준 주거 유형 매칭: "전월세" → 모두, "월세" → 월세만, "전세" → 전세만, 둘 다 없으면 전세 기본
+    private boolean supportsPolicyHousingType(String policyNm, HousingType requested) {
+        if (policyNm == null) return true;
+        boolean hasBoth = policyNm.contains("전월세");
+        if (hasBoth) return true;
+        boolean hasWolse = policyNm.contains("월세");
+        boolean hasJeonse = policyNm.contains("전세");
+        return switch (requested) {
+            case JEONSE -> !hasWolse;
+            case MONTHLY_RENT -> hasWolse;
         };
     }
 

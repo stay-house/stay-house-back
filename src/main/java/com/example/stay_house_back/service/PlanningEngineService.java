@@ -58,10 +58,13 @@ public class PlanningEngineService {
                 .filter(p -> "RENT_SUBSIDY".equals(p.getCategory()))
                 .toList();
 
-        // 월세지원 옵션 (null = 지원 없음)
+        // 월세지원 옵션 (null = 지원 없음). **월세가 있을 때만 붙인다** —
+        // 전세(월세 0원)는 차감할 월세가 없는데 지원금이 부담률을 낮춰
+        // 순위를 오염시킨다. 자격 필터의 monthly_rent_limit 은 0원도 통과시킨다.
+        boolean hasMonthlyRent = req.getMonthlyRent() != null && req.getMonthlyRent() > 0;
         List<EligiblePolicyDto> subsidyOptions = new ArrayList<>();
         subsidyOptions.add(null);
-        subsidyOptions.addAll(rentSubsidies);
+        if (hasMonthlyRent) subsidyOptions.addAll(rentSubsidies);
 
         List<Plan> plans = new ArrayList<>();
 

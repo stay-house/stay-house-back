@@ -33,6 +33,8 @@ public class PlanDtoConverter {
                 .rentSubsidyName(plan.getRentSubsidy() != null ? plan.getRentSubsidy().getPolicyName() : null)
                 .govRentSubsidyAmount(plan.getRentSubsidy() != null && plan.getRentSubsidy().getMonthlyAmount() != null
                         ? plan.getRentSubsidy().getMonthlyAmount().longValue() : null)
+                .rentSubsidyBudgetStatus(plan.getRentSubsidy() != null ? plan.getRentSubsidy().getBudgetStatus() : null)
+                .rentSubsidyApplyEndDate(plan.getRentSubsidy() != null ? plan.getRentSubsidy().getApplyEndDate() : null)
                 .loanAmount(plan.getLoanAmount())
                 .capAmount(plan.getCapAmount())
                 .shortfall(plan.getShortfall())

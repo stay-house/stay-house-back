@@ -20,6 +20,8 @@ public class PolicyConverter {
                 .loanLmtMax(p.getLoanLmtMax())
                 .ltvRatio(ec.getLtvRatio())
                 .monthlyAmount(p.getMonthlyAmount())
+                .budgetStatus(p.getBudgetStatus() != null ? p.getBudgetStatus().name() : null)
+                .applyEndDate(p.getApplyEndDate())
                 .sourceUrl(p.getSourceUrl())
                 .build();
     }

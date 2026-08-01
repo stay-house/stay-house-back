@@ -31,6 +31,9 @@ public class PlanDto {
     // 월세지원 (null = 없음)
     private final String rentSubsidyName;
     private final Long govRentSubsidyAmount;
+    // 모집형 지원의 접수 상태 — EXHAUSTED 면 랭킹 카드에 마감 배지를 띄운다
+    private final String rentSubsidyBudgetStatus;
+    private final String rentSubsidyApplyEndDate;
 
     // 대출 계산 결과
     private final long loanAmount;          // 실제 대출금

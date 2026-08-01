@@ -196,4 +196,70 @@ public class GptClient {
         }
         return options;
     }
+
+    /**
+     * 플랜 설명 생성 — 계산은 하지 않고 주어진 숫자를 문장으로 엮는다.
+     * 실패 시 예외를 던진다 — 호출자가 규칙 기반 폴백으로 전환한다.
+     */
+    public JsonNode generatePlanExplanation(Map<String, Object> planSummary) throws Exception {
+        Map<String, Object> tool = Map.of(
+                "type", "function",
+                "function", Map.of(
+                        "name", "submit_explanation",
+                        "description", "플랜 설명을 반환합니다.",
+                        "parameters", Map.of(
+                                "type", "object",
+                                "properties", Map.of(
+                                        "recommendReason", Map.of("type", "string",
+                                                "description", "이 플랜을 추천하는 이유 2~3문장"),
+                                        "cautions", Map.of("type", "array", "maxItems", 3,
+                                                "items", Map.of("type", "string"),
+                                                "description", "주의할 점 (변동금리·부족분·신청기간 등)"),
+                                        "actionGuide", Map.of("type", "array", "maxItems", 4,
+                                                "items", Map.of("type", "string"),
+                                                "description", "다음 행동 단계 (신청처·서류 등)")
+                                ),
+                                "required", List.of("recommendReason", "cautions", "actionGuide")
+                        )
+                )
+        );
+
+        String system = """
+                당신은 청년 주거 금융 플랜 설명가입니다. 아래 규칙을 반드시 지키세요.
+                - 제공된 숫자만 인용하세요. 새로운 금리·금액·비율을 계산하거나 만들지 마세요.
+                - 확정 승인처럼 단정하지 마세요 — "심사에 따라 달라질 수 있습니다" 태도를 유지하세요.
+                - 존댓말, recommendReason 은 2~3문장.
+                - cautions 는 이 플랜의 실제 리스크만: variableRate=true 면 금리 상승 시나리오,
+                  shortfall>0 이면 부족분, rentSubsidyBudgetStatus=EXHAUSTED 면 접수 마감(연 1회 모집).
+                - actionGuide 는 이 상품 유형에 맞는 실행 단계(신청 채널, 필요 서류 종류)를
+                  일반적 수준으로만 안내하세요. 구체적 수치를 지어내지 마세요.
+                """;
+
+        List<Map<String, Object>> messages = List.of(
+                Map.of("role", "system", "content", system),
+                Map.of("role", "user", "content",
+                        "다음 플랜을 설명해주세요:\n\n" + objectMapper.writeValueAsString(planSummary))
+        );
+
+        Map<String, Object> requestBody = Map.of(
+                "model", MODEL,
+                "messages", messages,
+                "tools", List.of(tool),
+                "tool_choice", Map.of("type", "function", "function", Map.of("name", "submit_explanation"))
+        );
+
+        String responseJson = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(requestBody)
+                .retrieve()
+                .body(String.class);
+        JsonNode root = objectMapper.readTree(responseJson);
+        JsonNode toolCalls = root.path("choices").path(0).path("message").path("tool_calls");
+        for (JsonNode toolCall : toolCalls) {
+            if ("submit_explanation".equals(toolCall.path("function").path("name").asText())) {
+                return objectMapper.readTree(toolCall.path("function").path("arguments").asText());
+            }
+        }
+        throw new IllegalStateException("GPT 응답에 submit_explanation 호출이 없음");
+    }
 }

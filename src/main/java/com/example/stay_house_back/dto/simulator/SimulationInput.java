@@ -23,4 +23,9 @@ public class SimulationInput {
     private long loanAmount;
     private double annualRate;             // 실적용 금리(%)
     private boolean variableRate;          // true = 변동금리
+
+    // 상환방식. false(기본) = 만기일시상환(이자만), true = 원리금균등분할상환.
+    // 분할일 때만 termMonths 를 쓴다 — 원리금균등 공식의 n
+    private boolean amortizing;
+    private int termMonths;
 }

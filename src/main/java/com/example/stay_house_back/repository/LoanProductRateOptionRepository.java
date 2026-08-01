@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface LoanProductRateOptionRepository extends JpaRepository<LoanProductRateOption, Long> {
     List<LoanProductRateOption> findByLoanProduct(LoanProduct loanProduct);
+    List<LoanProductRateOption> findByLoanProductId(Long loanProductId);
 }

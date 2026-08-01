@@ -10,4 +10,5 @@ import java.util.List;
 public interface EligibilityConditionRepository extends JpaRepository<EligibilityCondition, Long> {
     List<EligibilityCondition> findByLoanProductIsNotNull();
     List<EligibilityCondition> findByPolicyIsNotNull();
+    java.util.Optional<EligibilityCondition> findByLoanProductId(Long loanProductId);
 }

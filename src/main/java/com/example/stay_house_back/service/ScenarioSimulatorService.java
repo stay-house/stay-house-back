@@ -40,7 +40,7 @@ public class ScenarioSimulatorService {
 
     private MonthlyFlowSnapshot calcScenario(SimulationInput input, double rateOffset) {
         long monthlyLoanRepayment = input.isHasLoan()
-                ? calcMonthlyInterest(input, rateOffset)
+                ? calcMonthlyRepayment(input, rateOffset)
                 : 0L;
 
         long monthlyRentAfterSubsidy = Math.max(0L, input.getMonthlyRent() - input.getGovRentSubsidyAmount());
@@ -65,7 +65,23 @@ public class ScenarioSimulatorService {
      * 만기일시상환 — 월이자 = 원금 × (연이율 / 100) / 12
      * 변동금리이면 rateOffset 적용, 고정금리이면 기본 금리 사용.
      */
-    private long calcMonthlyInterest(SimulationInput input, double rateOffset) {
+    private long calcMonthlyRepayment(SimulationInput input, double rateOffset) {
+        if (input.isAmortizing()) {
+            return calcAmortized(input, rateOffset);
+        }
+        return calcInterestOnly(input, rateOffset);
+    }
+
+    /** 원리금균등분할상환. r==0 이면 원금/n */
+    private long calcAmortized(SimulationInput input, double rateOffset) {
+        int n = input.getTermMonths() > 0 ? input.getTermMonths() : 24;
+        double r = (input.getAnnualRate() + rateOffset) / 100 / 12;
+        if (r == 0) return Math.round((double) input.getLoanAmount() / n);
+        double factor = Math.pow(1 + r, n);
+        return Math.round(input.getLoanAmount() * (r * factor) / (factor - 1));
+    }
+
+    private long calcInterestOnly(SimulationInput input, double rateOffset) {
         double effectiveRate = input.isVariableRate()
                 ? input.getAnnualRate() + rateOffset
                 : input.getAnnualRate();

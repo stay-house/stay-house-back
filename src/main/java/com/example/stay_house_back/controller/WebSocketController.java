@@ -56,7 +56,10 @@ public class WebSocketController {
                 req.getHousingType(), req.getDeposit(), req.getMonthlyRent(),
                 req.getAreaSqm(), req.getOwnCapital());
 
-        send(planRequestId, progress("자격 조건 필터링 중..."));
+        boolean answerRound = startRequest.getAnswers() != null;
+        send(planRequestId, progress(answerRound
+                ? "선택하신 우대금리 반영 중..."
+                : "자격 조건 필터링 중..."));
         EligibilityResponse eligible = eligibilityFilterService.filter(req);
         try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
 
@@ -74,10 +77,11 @@ public class WebSocketController {
         // 클라이언트가 같은 요청에 answers 를 붙여 다시 보낸다 (무상태 왕복).
         // 질문이 0건이면(정책 없음 / PROFILE 전부 탈락) 바로 플랜 생성으로 간다.
         PreferentialProfile profile = toPreferentialProfile(req);
-        if (startRequest.getAnswers() == null) {
+        if (!answerRound) {
             List<Long> policyIds = eligible.getPolicies().stream()
                     .map(EligiblePolicyDto::getId)
                     .toList();
+            send(planRequestId, progress("적용 가능한 우대금리 확인 중..."));
             List<PreferentialQuestion> questions =
                     preferentialRateService.buildQuestions(policyIds, profile);
             if (!questions.isEmpty()) {

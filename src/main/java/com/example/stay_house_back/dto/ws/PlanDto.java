@@ -31,6 +31,10 @@ public class PlanDto {
     // 월세지원 (null = 없음)
     private final String rentSubsidyName;
     private final Long govRentSubsidyAmount;
+    // 선호 선택과 맞는 플랜인가. null = 선호 미선택(전부 일반 표시),
+    // false = 선호와 다른 조건 — 랭킹 카드에서 흑백·반투명으로 표시
+    private final Boolean preferenceMatched;
+
     // 모집형 지원의 접수 상태 — EXHAUSTED 면 랭킹 카드에 마감 배지를 띄운다
     private final String rentSubsidyBudgetStatus;
     private final String rentSubsidyApplyEndDate;

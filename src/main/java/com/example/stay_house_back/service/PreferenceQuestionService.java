@@ -107,28 +107,44 @@ public class PreferenceQuestionService {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("planId", plan.getPlanId());
 
-        // 대출 조건
+        // 대출 계산 결과
         summary.put("annualRate", plan.getAnnualRate());
         summary.put("variableRate", plan.isVariableRate());
         summary.put("loanAmount", plan.getLoanAmount());
+        summary.put("capAmount", plan.getCapAmount());
         summary.put("shortfall", plan.getShortfall());
 
-        // 상품 정보
-        summary.put("category", plan.getFundingSource().getType().name());
+        // 상품 정보 전체
+        summary.put("fundingType", plan.getFundingSource().getType().name());
         switch (plan.getFundingSource().getType()) {
             case BANK_LOAN -> {
-                summary.put("bankName", plan.getFundingSource().getBankLoan().getBankName());
-                summary.put("joinWay", plan.getFundingSource().getBankLoan().getJoinWay());
+                var b = plan.getFundingSource().getBankLoan();
+                summary.put("bankName", b.getBankName());
+                summary.put("productName", b.getProductName());
+                summary.put("joinWay", b.getJoinWay());
+                summary.put("isYouth", b.getIsYouth());
+                summary.put("guaranteeAgency", b.getGuaranteeAgency());
+                summary.put("rateMin", b.getRateMin());
+                summary.put("rateMax", b.getRateMax());
+                summary.put("housingTarget", b.getHousingTarget());
             }
             case POLICY_LOAN -> {
-                summary.put("policyName", plan.getFundingSource().getPolicyLoan().getPolicyName());
+                var p = plan.getFundingSource().getPolicyLoan();
+                summary.put("policyName", p.getPolicyName());
+                summary.put("operatingAgency", p.getOperatingAgency());
+                summary.put("rateMin", p.getRateMin());
+                summary.put("rateMax", p.getRateMax());
+                summary.put("loanLmtMax", p.getLoanLmtMax());
             }
             case SELF_FUNDED -> {}
         }
 
-        // 월세 지원
+        // 월세 지원 전체
         if (plan.getRentSubsidy() != null) {
-            summary.put("rentSubsidyMonthlyAmount", plan.getRentSubsidy().getMonthlyAmount());
+            var rs = plan.getRentSubsidy();
+            summary.put("rentSubsidyName", rs.getPolicyName());
+            summary.put("rentSubsidyMonthlyAmount", rs.getMonthlyAmount());
+            summary.put("rentSubsidyBudgetStatus", rs.getBudgetStatus());
         }
 
         return summary;

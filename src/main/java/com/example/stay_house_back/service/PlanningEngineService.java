@@ -10,9 +10,12 @@ import com.example.stay_house_back.dto.preferential.PlanLoanValues;
 import com.example.stay_house_back.dto.preferential.PreferentialEvaluation;
 import com.example.stay_house_back.dto.preferential.PreferentialProfile;
 import com.example.stay_house_back.entity.PolicyRateMatrix;
+import com.example.stay_house_back.entity.PolicyRateRule;
 import com.example.stay_house_back.entity.ProductExclusion;
+import com.example.stay_house_back.entity.enums.PolicyRuleAppliesTo;
 import com.example.stay_house_back.entity.enums.ProductType;
 import com.example.stay_house_back.repository.PolicyRateMatrixRepository;
+import com.example.stay_house_back.repository.PolicyRateRuleRepository;
 import com.example.stay_house_back.repository.ProductExclusionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +39,7 @@ import java.util.stream.Collectors;
 public class PlanningEngineService {
 
     private final PolicyRateMatrixRepository policyRateMatrixRepository;
+    private final PolicyRateRuleRepository policyRateRuleRepository;
     private final ProductExclusionRepository productExclusionRepository;
     private final PreferentialRateService preferentialRateService;
 
@@ -104,10 +108,11 @@ public class PlanningEngineService {
 
         // ── POLICY_LOAN ──────────────────────────────────────────────────────
         int annualIncome = req.getAnnualIncome() != null ? req.getAnnualIncome() : 0;
+        int monthlyRent = req.getMonthlyRent() != null ? req.getMonthlyRent() : 0;
         for (EligiblePolicyDto pl : policyLoans) {
-            Double rate = lookupPolicyRate(pl.getId(), annualIncome, deposit);
+            Double rate = lookupPolicyRate(pl.getId(), annualIncome, deposit, monthlyRent);
             if (rate == null) {
-                log.debug("정책 금리 격자 매칭 없음 — policyId={}, income={}, deposit={}", pl.getId(), annualIncome, deposit);
+                log.debug("정책 금리 매칭 없음 — policyId={}, income={}, deposit={}, monthlyRent={}", pl.getId(), annualIncome, deposit, monthlyRent);
                 continue;
             }
             LoanCalc calc = calcLoan(pl.getLtvRatio(), pl.getLoanLmtMax(), rate, false, deposit, ownCapital);
@@ -169,13 +174,27 @@ public class PlanningEngineService {
     }
 
     /**
-     * 정책 금리 격자에서 사용자 소득·보증금에 해당하는 금리 조회.
+     * 정책 금리 조회. policy_rate_matrix(격자) 우선, 없으면 policy_rate_rule(단일/조건부) 시도.
      * 매칭 행이 없으면 null 반환 → 해당 정책은 플랜에서 제외.
+     * <p>
+     * 월세 2건(주거안정월세·청년전용 보증부월세)은 격자가 없고 rate_rule 에만 있다.
+     * DEPOSIT 타입 → deposit, RENT 타입 → monthlyRent, ALL 타입 → 0 으로 매칭한다.
      */
-    private Double lookupPolicyRate(Long policyId, int annualIncome, int deposit) {
-        List<PolicyRateMatrix> matches = policyRateMatrixRepository.findMatchingRates(policyId, annualIncome, deposit);
-        if (matches.isEmpty()) return null;
-        return matches.get(0).getRate();
+    private Double lookupPolicyRate(Long policyId, int annualIncome, int deposit, int monthlyRent) {
+        List<PolicyRateMatrix> matrixMatches = policyRateMatrixRepository.findMatchingRates(policyId, annualIncome, deposit);
+        if (!matrixMatches.isEmpty()) return matrixMatches.get(0).getRate();
+
+        // fallback: policy_rate_rule (월세 계열 정책)
+        for (PolicyRuleAppliesTo type : PolicyRuleAppliesTo.values()) {
+            int amount = switch (type) {
+                case DEPOSIT -> deposit;
+                case RENT    -> monthlyRent;
+                case ALL     -> 0;
+            };
+            List<PolicyRateRule> ruleMatches = policyRateRuleRepository.findMatchingRules(policyId, type, amount);
+            if (!ruleMatches.isEmpty()) return ruleMatches.get(0).getRate();
+        }
+        return null;
     }
 
     private Set<String> loadExclusionKeys() {
